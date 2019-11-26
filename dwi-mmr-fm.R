@@ -11,7 +11,7 @@ cmd <- "
    jq .AcquisitionTime < $f |
    sed \"s:^:$(basename $f) :\"; done |
    perl -lne '
-      print \"$1 $3 $4\" if m/(sub-.*)_(acq-dwi|dwi).*?(run-\\d+|\\.).*?json \"(.*)\"/
+      print \"$1 $3$2 $4\" if m/(sub-.*)_(acq-dwi|dwi|acq-func).*?(run-\\d+|\\.).*?json \"(.*)\"/
    '"
 out <- system(intern=T, cmd)
 # [1] "sub-10195_ses-20160317 run-1 11:36:30.930000"
@@ -21,10 +21,14 @@ out <- system(intern=T, cmd)
 d <-
    read.table(text=out, col.names=c('id','run','acqtime')) %>%
    mutate(acqtime=acqtime %>% hms %>% as.numeric) %>%
+   group_by(id, run) %>% mutate(r=rank(acqtime, ties.method="first")) %>%
+  # transpose to wide so we have a dwi time column. row per visit
+  # remove anyone without a dwi time
+  filter(r==1) %>% select(-r) %>%
    # transpose to wide so we have a dwi time column. row per visit
    # remove anyone without a dwi time
    spread(run,acqtime) %>%
-   rename(dwi='.') %>%
+   rename(dwi='.dwi') %>%
    filter(!is.na(dwi)) %>%
    # put back into long format so we can find best column
    gather(run,acqtime,-id,-dwi) %>%
