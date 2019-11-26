@@ -1,0 +1,6 @@
+BIDS_FMP/
+*out*/
+*old*/
+.Rhistory
+.make/
+*.sw[a-z]

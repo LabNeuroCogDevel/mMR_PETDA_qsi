@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 trap 'e=$?; [ $e -ne 0 ] && echo "$0 exited in error"' EXIT
+cd $(dirname $0)
+source funcs.src.bash # BIDSDIR, matchrow_to_ses()
 
 # 1) renames and phase1 to phasediff
 # 2) add EchoTime1, EchoTime2, and intendedFor to the fmap closest to dwi
@@ -8,20 +10,14 @@ trap 'e=$?; [ $e -ne 0 ] && echo "$0 exited in error"' EXIT
 # 
 #  20191126WF  init
 
-BIDSDIR="BIDS_FMP"
-
 # take header off text file
 # 
 #id                   	dwi    	run         	acqtime   	acqdiff        	n_ses_fmap
 #sub-10195_ses-20170824	59970.1	run-1acq-dwi	59232.8525	737.247499999998	3
 sed 1d txt/best_fmap_for_dwi.txt |
  while read id dwi runacq t d n; do
-    sesdir=$BIDSDIR/${id/_/\/}
-    [ ! -d $sesdir ] && echo "no ses dir for $id?!" && break
-    [ ! -d $sesdir ] && echo "no ses dir for $id?!" && continue
-    ! [[ $runacq =~ (run-[0-9]+)(acq-.*) ]] && echo "run '$run' doesnt look like 'run-#acq-.*'" && continue
-    run=${BASH_REMATCH[1]}
-    acq=${BASH_REMATCH[2]}
+    read sesdir acq run <<<$(matchrow_to_ses "$id" "$runacq")
+    [ -z "$sesdir" ] && break
 
     # relative to bidsRoot
     theDSI=$(cd $BIDSDIR; find ${id/_/\/}/dwi/ -iname *nii.gz)
