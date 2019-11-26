@@ -28,7 +28,7 @@ rmnot() {
    d="$1"; shift
    patt="$1"; shift
    dryrun=""
-   dryrun="echo"
+   #dryrun="echo"
 
    nkeep=$(find  $d -maxdepth 1 -type f,l -iname "$patt" | wc -l)
    nrm=$(find $d -type f,l -not -iname "$patt" | wc -l)

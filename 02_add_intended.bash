@@ -17,7 +17,7 @@ source funcs.src.bash # BIDSDIR, matchrow_to_ses()
 sed 1d txt/best_fmap_for_dwi.txt |
  while read id dwi runacq t d n; do
     read sesdir acq run <<<$(matchrow_to_ses "$id" "$runacq")
-    [ -z "$sesdir" ] && break
+    [ -z "$sesdir" ] && continue
 
     # relative to bidsRoot
     theDSI=$(cd $BIDSDIR; find ${id/_/\/}/dwi/ -iname *nii.gz)
