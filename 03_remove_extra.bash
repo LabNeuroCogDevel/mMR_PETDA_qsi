@@ -2,10 +2,11 @@
 set -euo pipefail
 trap 'e=$?; [ $e -ne 0 ] && echo "$0 exited in error"' EXIT
 
-source funcs.src.bash # BIDSDIR, matchrow_to_ses()
+source funcs.src.bash # BIDSDIR, matchrow_to_ses(), rmnot()
 
 #
 # remove extra mag and t1 images
+#  20191203WF  rm if empty fmap, anat, or dwi
 #  20191126WF  init
 
 #id                   	dwi    	run         	acqtime   	acqdiff        	n_ses_fmap
@@ -25,4 +26,16 @@ sed 1d txt/best_T1w_for_dwi.txt | while read id j runacq j; do
 
    # remove files not like the ideal acq run
    rmnot $sesdir/anat "*$acq*$run*" || continue
+done
+
+## remove if missing necessary files
+missing_nii(){
+  [ $(find $1 -iname '*.nii.gz' | wc -l) -ne 0 ] && return 1
+  echo "no nii in $d" >&2
+  return 0
+}
+for d in $BIDSDIR/sub-*/ses-*; do
+   missing_nii $d/anat/ && rm -r $d && continue
+   missing_nii $d/fmap/ && rm -r $d && continue
+   missing_nii $d/dwi/  && rm -r $d && continue
 done
