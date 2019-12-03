@@ -19,9 +19,11 @@ sed 1d txt/best_fmap_for_dwi.txt |
     read sesdir acq run <<<$(matchrow_to_ses "$id" "$runacq")
     [ -z "$sesdir" ] && continue
 
-    # relative to bidsRoot
-    theDSI=$(cd $BIDSDIR; find ${id/_/\/}/dwi/ -iname *nii.gz)
-    [ -z "$theDSI" -o ! -r "$BIDSDIR/$theDSI" ] && echo "cannot find the dsi image for $sesdir/dwi: '$theDSI'" && continue
+    # nii is relative to relative to bids sub-*/
+    subdir="$BIDSDIR/${id%%_*}"
+    theDSI=$(cd $subdir; find ${id##*_}/dwi/ -iname *nii.gz)
+    [ -z "$theDSI" -o ! -r "$subdir/$theDSI" ] && 
+       echo "cannot find the dwi image for $sesdir/dwi: '$theDSI'" && continue
 
     # phase1 files should be called phasediff
     rename  's/_phase1\./_phasediff./' $sesdir/fmap/*phase1.*
@@ -38,7 +40,7 @@ sed 1d txt/best_fmap_for_dwi.txt |
     # add it
     # replace the first { in the file with the 3 new lines we need:
     #  EchoTime1, EchoTime2, and IntendedFor (file relative to BIDSROOT)
-    sed -i 's;^{;{\n\t"EchoTime1": 0.00492,\n\t"EchoTime2": 0.00738,\n\t"IntendedFor":["'"${theDSI/.nii.gz/}"'"],;' $phasediff
+    sed -i 's;^{;{\n\t"EchoTime1": 0.00492,\n\t"EchoTime2": 0.00738,\n\t"IntendedFor":["'"${theDSI}"'"],;' $phasediff
     echo "added Echo1+2, '$theDSI' to $phasediff"
     # TODO: get Echo1 and Echo2 from mag1 and mag2 ?
     # read E1 E2 <<< $(jq .EchoTime $sesdir/fmap/*$acq*$run*magnitude[12].json|tr '\n' ' ')
