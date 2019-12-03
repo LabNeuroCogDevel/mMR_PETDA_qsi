@@ -8,13 +8,18 @@
 #
 
 set -euo pipefail
+cd $(dirname $0)
+source funcs.src.bash # BIDSDIR="DWI_BIDS_all"
 
 # what docker image to use. e.g. latest
 # can be given as first argument to runme_docker.bash
-# e.g. ./runme_docker.bash 0.6.4-1
+# run like:
+# ./runme_docker.bash latest
 [ $# -ne 1 ] && label='0.6.5' || label="$1"
 
-if [[ $label =~ '0.6.5'|latest ]]; then
+# latest and unstable are moving targets
+# pull them each time we try to run - and label with date
+if [[ $label =~ unstable|latest ]]; then
    docker pull pennbbl/qsiprep:$label || continue
    prefix="docker-$label-$(docker inspect -f '{{ .Created }}' pennbbl/qsiprep)"
 else
@@ -29,11 +34,11 @@ done
 docker run --rm -it \
    -v $FREESURFER_HOME:$FREESURFER_HOME:ro \
    -v /Volumes:/Volumes:ro \
-   -v /Volumes/Hera/Projects/mMR_PETDA/qsi/BIDS_TEST_V2_FMP:/data:ro \
+   -v /Volumes/Hera/Projects/mMR_PETDA/qsi/$BIDSDIR:/data:ro \
    -v /Volumes/Hera/Projects/mMR_PETDA/qsi/out:/out \
    pennbbl/qsiprep:$label \
      --fs-license-file  $FREESURFER_HOME/license.txt \
-     --output-resolution 2.3 \
+     --output-resolution 2 \
      --hmc-model 3dSHORE \
      --stop-on-first-crash \
      -w /out/workdir-$prefix \
