@@ -2,8 +2,6 @@
 set -euo pipefail
 trap 'e=$?; [ $e -ne 0 ] && echo "$0 exited in error"' EXIT
 SCRIPTDIR="$(cd $(dirname "$0"); pwd)"
-DRY=""
-#DRY=echo
 
 #
 # collapse sub-xxx/ses-yyy to sub-xxx_yyyy
@@ -26,7 +24,9 @@ find DWI_BIDS_all/ -type f,l|while read old; do
 
  # otherwise link in to possibly a new directory
  ndir=$(dirname $new)
- [ ! -d $ndir ] && $DRY mkdir -p $ndir
- $DRY ln -s $(pwd)/$old $new
+ [ ! -d $ndir ] && mkdir -p $ndir
+ [[ $new =~ phasediff.json ]] &&
+   sed 's:ses-[0-9]\+/\|_ses-::g' $old > $new ||
+   ln -s $(pwd)/$old $new
 done
 
