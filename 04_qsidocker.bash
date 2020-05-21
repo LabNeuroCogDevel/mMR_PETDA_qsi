@@ -1,25 +1,64 @@
 #!/usr/bin/env bash
-set -x
+set -euo pipefail
+
+# defaults
+# 20200521 - RES changed at somepoint from default of 2mm
+env |grep -q "^RES=" || RES=2.3 # upsampling from 2.3 ! -- if prefix=for_matt, will force 2.3
+env |grep -q "^BIDSDIR=" || BIDSDIR="DWI_BIDS_noses"
+env |grep -q ^QSIPREFIX= && prefix="$QSIPREFIX" || prefix=""
+env |grep -q ^QSI_NCPU= && QSI_NCPU="$QSI_NCPU" || QSI_NCPU=2
+env |grep -q ^DRYRUN= && DRYRUN=echo || DRYRUN=""
+
+# USAGE
+USAGE(){
+   cat <<HEREDOC 
+   $0 - run qsiprep with docker"
+   USAGE:
+    [env] $0 [label subjects]
+    env options: RES QSI_NCPU QSIPREFIX DRYRUN BIDSDIR 
+    label e.g.: latest 0.6.5
+   Example:
+    $0                                           # this message
+    $0 latest                                    # run all with latest
+    QSIPREFIX="for_matt" $0 latest               # all with different prefix
+    $0 latest 1122820190418                      # just 1122820190418
+    QSIPREFIX="for_matt" $0 latest 1122820190418 # just one but with different prefix
+   Defaults:
+     RES=$RES QSI_NCPU=$QSI_NCPU QSIPREFIX="$QSIPREFIX" BIDSDIR="$BIDSDIR"
+   Notes:
+     QSIPREFIX="for_matt" is a special. forces resolution to iso 2.3 
+     label 'latest' is always the newest stable docker
+     label 'unstable' is the most recent
+      if using either latest or unstable, prefix will be appending with the docker image creation time
+      see \`docker inspect -f '{{ .Created }}' pennbbl/qsiprep\`
+HEREDOC
+
+exit 1
+}
+
 #
 # run dockerized qsiprep
 #  optional input arg: qsiprep version
 #    ./runme_docker.bash 0.6.4-1
 #  (default to latest, saves outputfolder with yyyymmdd date)
 #
-RES=2 # upsampling from 2.3 !
 
-set -euo pipefail
 cd $(dirname $0)
-#source funcs.src.bash 
-env |grep -q "^BIDSDIR=" || BIDSDIR="DWI_BIDS_noses"
-[ -z "$BIDSDIR" -o ! -d "$BIDSDIR" ] && echo "NO BIDSDIR '$BIDSDIR'" &>2 && exit 1
-echo "USING BIDSDIR: $BIDSDIR"
 
 # what docker image to use. e.g. latest
 # can be given as first argument to runme_docker.bash
 # run like:
 # ./runme_docker.bash latest
-[ $# -eq 0 ] && label='latest' || label="$1"  # prev stable run: 0.6.5
+[ $# -eq 0 ] && USAGE # exit 1
+[[ $1 =~ help|-h ]] && USAGE
+
+[ -z "$BIDSDIR" -o ! -d "$BIDSDIR" ] && echo "NO BIDSDIR '$BIDSDIR'" &>2 && exit 1
+
+# show what we are doing
+echo "USING settings:"
+env |grep -e '^(QSIPREFIX|RES|QSI_NCPU|BIDSDIR)='
+
+label="$1"  # prev stable run: 0.6.5
 echo "qsiprep label: $label"
 
 # latest and unstable are moving targets
@@ -27,7 +66,6 @@ echo "qsiprep label: $label"
 #prefix=$(date +%F-%T-)
 # 20200108 - remove timestamp b/c we have list of subjects
 # 20200128 - pull prefix from environment or set to empty
-env | grep -q ^QSIPREFIX= && prefix="$QSIPREFIX" || prefix=""
 
 [ -z "$prefix" ] && prefix="."
 
@@ -41,6 +79,9 @@ else
    prefix="$prefix/docker-$label"
 fi
 
+
+# if we have more than one input argument (right side of script)
+# use those arguments as participant labels
 if [ $# -gt 1 ]; then
    shift;
    sublist="--participant-label $@" 
@@ -56,12 +97,8 @@ if [ $# -gt 1 ]; then
    else
       prefix="$prefix-${RES}mm-$#"
    fi
-   # TODO: maybe change to 1
-   ncpu="--n-cpus 2"
 else
    sublist=""
-   # TODO: maybe change to empty? to 16?
-   ncpu="--n-cpus 2"
 fi
 
 # # remove directoires if we have them
@@ -74,7 +111,7 @@ fi
 test -d /out/workdir/$prefix && echo "have; rm $_ # to redo" && exit 0
 
 set -x
-docker run --rm \
+$DRYRUN docker run --rm \
    -v $FREESURFER_HOME:$FREESURFER_HOME:ro \
    -v /Volumes:/Volumes:ro \
    -v /Volumes/Hera/Projects/mMR_PETDA/qsi/$BIDSDIR:/data:ro \
@@ -87,7 +124,7 @@ docker run --rm \
      --output-resolution $RES \
      --hmc-model 3dSHORE \
      $sublist \
-     $ncpu \
+     --n-cpus $QSI_NCPU \
      -w /out/workdir/$prefix \
 
      #--stop-on-first-crash \
