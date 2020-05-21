@@ -3,10 +3,10 @@ set -euo pipefail
 
 # defaults
 # 20200521 - RES changed at somepoint from default of 2mm
-env |grep -q "^RES=" || RES=2.3 # upsampling from 2.3 ! -- if prefix=for_matt, will force 2.3
-env |grep -q "^BIDSDIR=" || BIDSDIR="DWI_BIDS_noses"
-env |grep -q ^QSIPREFIX= && prefix="$QSIPREFIX" || prefix=""
-env |grep -q ^QSI_NCPU= && QSI_NCPU="$QSI_NCPU" || QSI_NCPU=2
+env |grep -q "^RES=" || export RES=2.3 # upsampling from 2.3 ! -- if prefix=for_matt, will force 2.3
+env |grep -q "^BIDSDIR=" || export BIDSDIR="DWI_BIDS_noses"
+env |grep -q ^QSIPREFIX= || export QSIPREFIX=""
+env |grep -q ^QSI_NCPU=  || export QSI_NCPU=2
 env |grep -q ^DRYRUN= && DRYRUN=echo || DRYRUN=""
 
 # USAGE
@@ -19,10 +19,13 @@ USAGE(){
     label e.g.: latest 0.6.5
    Example:
     $0                                           # this message
+    $0 help                                      # this message
     $0 latest                                    # run all with latest
     QSIPREFIX="for_matt" $0 latest               # all with different prefix
     $0 latest 1122820190418                      # just 1122820190418
     QSIPREFIX="for_matt" $0 latest 1122820190418 # just one but with different prefix
+    DRYRUN=1 $0 latest                           # all but just echo what we'd do
+    DRYRUN=1 QSIPREFIX="for_matt" $0 latest      # all with prefix, but just echo what we'd do
    Defaults:
      RES=$RES QSI_NCPU=$QSI_NCPU QSIPREFIX="$QSIPREFIX" BIDSDIR="$BIDSDIR"
    Notes:
@@ -56,7 +59,7 @@ cd $(dirname $0)
 
 # show what we are doing
 echo "USING settings:"
-env |grep -e '^(QSIPREFIX|RES|QSI_NCPU|BIDSDIR)='
+env |egrep '^(QSIPREFIX|RES|QSI_NCPU|BIDSDIR)='
 
 label="$1"  # prev stable run: 0.6.5
 echo "qsiprep label: $label"
@@ -67,7 +70,7 @@ echo "qsiprep label: $label"
 # 20200108 - remove timestamp b/c we have list of subjects
 # 20200128 - pull prefix from environment or set to empty
 
-[ -z "$prefix" ] && prefix="."
+[ -n "$QSIPREFIX" ] && prefix="$QSIPREFIX" || prefix="."
 
 # 20200416 - if we're rerunning for matt, change the resolution not to upsample
 [[ "$prefix" =~ for_matt ]]  && RES=2.3 && echo "SETTING RES to $RES"
@@ -110,7 +113,7 @@ fi
 # e.g. /out/workdir/skullstrip/docker-0.6.5-1122820190418
 test -d /out/workdir/$prefix && echo "have; rm $_ # to redo" && exit 0
 
-set -x
+[ -z "$DRYRUN" ] && set -x # echo either way, but not twice if dryrun
 $DRYRUN docker run --rm \
    -v $FREESURFER_HOME:$FREESURFER_HOME:ro \
    -v /Volumes:/Volumes:ro \
